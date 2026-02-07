@@ -1,11 +1,20 @@
 from fastapi import FastAPI, Depends
 from sqlalchemy.orm import Session
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import SessionLocal
 from app.models import Vehicle
 from app.schemas import VehicleCreate, VehicleResponse
 
 app = FastAPI(title="Vehicle Service")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],        # allow all origins
+    allow_credentials=True,
+    allow_methods=["*"],        # GET, POST, PUT, DELETE, etc
+    allow_headers=["*"], 
+)
 
 def get_db():
     db = SessionLocal()
