@@ -24,7 +24,7 @@ def get_db():
         db.close()
 
 # ✅ Health Check API
-@app.get("/api/health")
+@app.get("/health")
 def health_check():
     return {"status": "ok"}
 
