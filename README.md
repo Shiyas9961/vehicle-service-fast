@@ -14,6 +14,7 @@ The project is containerized with **Docker** and supports CI/CD using
 -   SQLAlchemy ORM
 -   Alembic migrations
 -   Health check endpoint
+-   Prometheus metrics endpoint
 -   Docker & Docker Compose support
 -   GitHub Actions CI/CD pipeline
 -   Pytest-based testing setup
@@ -112,6 +113,10 @@ alembic upgrade head
 ### Health Check
 
     GET /api/health
+
+### Prometheus Metrics
+
+    GET /metrics
 
 ### Create Vehicle
 

@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Depends
 from sqlalchemy.orm import Session
 from fastapi.middleware.cors import CORSMiddleware
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.database import SessionLocal
 from app.models import Vehicle
@@ -15,6 +16,8 @@ app.add_middleware(
     allow_methods=["*"],        # GET, POST, PUT, DELETE, etc
     allow_headers=["*"], 
 )
+
+Instrumentator().instrument(app).expose(app, endpoint="/api/metrics", include_in_schema=False)
 
 def get_db():
     db = SessionLocal()
@@ -41,4 +44,3 @@ def create_vehicle(vehicle: VehicleCreate, db: Session = Depends(get_db)):
 @app.get("/api/vehicles", response_model=list[VehicleResponse])
 def list_vehicles(db: Session = Depends(get_db)):
     return db.query(Vehicle).all()
-
