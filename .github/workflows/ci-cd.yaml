@@ -1,106 +1,104 @@
 name: CI/CD Pipeline
 
 on:
-    push:
-        branches:
-            - main
-            - develop
-    pull_request:
-        branches:
-            - main
-            - develop
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
 
 jobs:
-    test:
-        name: Run Tests
-        runs-on: ubuntu-latest
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
 
-        steps:
-            - name: Checkout code
-              uses: actions/checkout@v4
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-            - name: Set up Python
-              uses: actions/setup-python@v4
-              with:
-                python-version: '3.13'
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.13"
 
-            - name: Install dependencies
-              run: |
-                python -m pip install --upgrade pip
-                pip install -r requirements-test.txt
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-test.txt
 
-            - name: Run tests
-              run: |
-                pytest -v
+      - name: Run tests
+        run: |
+          pytest -v
 
-    build-and-push:
-        name: Build Push and Update Manifest Repo
-        needs: test
-        runs-on: ubuntu-latest
+  build-and-push:
+    name: Build Push and Update Manifest Repo
+    needs: test
+    runs-on: ubuntu-latest
 
-        permissions:
-          contents: read
+    permissions:
+      contents: read
 
-        steps:
-            - name: Checkout code
-              uses: actions/checkout@v4
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-            - name: Set image tag
-              id: vars
-              run: |
-                if [ "${GITHUB_REF_NAME}" = "main" ]; then
-                  echo "IMAGE_TAG=1.0.${GITHUB_RUN_NUMBER}" >> $GITHUB_ENV
-                  echo "OVERLAY=prod" >> $GITHUB_ENV
-                else
-                  echo "IMAGE_TAG=dev-${GITHUB_RUN_NUMBER}" >> $GITHUB_ENV
-                  echo "OVERLAY=dev" >> $GITHUB_ENV
-                fi
+      - name: Set image tag
+        run: |
+          if [ "${GITHUB_REF_NAME}" = "main" ]; then
+            echo "IMAGE_TAG=1.0.${GITHUB_RUN_NUMBER}" >> $GITHUB_ENV
+            echo "OVERLAY=prod" >> $GITHUB_ENV
+          else
+            echo "IMAGE_TAG=dev-${GITHUB_RUN_NUMBER}" >> $GITHUB_ENV
+            echo "OVERLAY=dev" >> $GITHUB_ENV
+          fi
 
-            - name: Login to Docker Hub
-              uses: docker/login-action@v3
-              with:
-                username: ${{ secrets.DOCKER_USERNAME }}
-                password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
-            - name: Build Docker image
-              run: |
-                docker build \
-                    -t ${{ secrets.DOCKER_USERNAME }}/vehicle-fast-api:latest \
-                    -t ${{ secrets.DOCKER_USERNAME }}/vehicle-fast-api:1.0${{ github.run_number }} \
-                    .
-            
-            - name: Push Docker image
-              run: |
-                docker push ${{ secrets.DOCKER_USERNAME }}/vehicle-fast-api:latest
-                docker push ${{ secrets.DOCKER_USERNAME }}/vehicle-fast-api:1.0${{ github.run_number }}
-            
-            - name: Checkout manifest repo
-              uses: actions/checkout@v4
-              with:
-                repository: Shiyas9961/vehicle-k8s-config
-                token: ${{ secrets.MANIFEST_REPO_TOKEN }}
-                path: vehicle-k8s-config
-                fetch-depth: 0
+      - name: Build Docker image
+        run: |
+          docker build \
+            -t ${{ secrets.DOCKER_USERNAME }}/vehicle-fast-api:latest \
+            -t ${{ secrets.DOCKER_USERNAME }}/vehicle-fast-api:${IMAGE_TAG} \
+            .
 
-            - name: Install yq
-              run: |
-                sudo wget -O /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
-                sudo chmod +x /usr/local/bin/yq
+      - name: Push Docker image
+        run: |
+          docker push ${{ secrets.DOCKER_USERNAME }}/vehicle-fast-api:latest
+          docker push ${{ secrets.DOCKER_USERNAME }}/vehicle-fast-api:${IMAGE_TAG}
 
-            - name: Update backend image tag in kustomization
-              run: |
-                cd vehicle-k8s-config
-                yq -i '
-                  (.images[] | select(.name == "${{ secrets.DOCKER_USERNAME }}/vehicle-fast-api") | .newTag) = strenv(IMAGE_TAG)
-                ' apps/vehicle-core/overlays/${OVERLAY}/kustomization.yml
+      - name: Checkout manifest repo
+        uses: actions/checkout@v4
+        with:
+          repository: Shiyas9961/vehicle-k8s-config
+          token: ${{ secrets.MANIFEST_REPO_TOKEN }}
+          path: vehicle-k8s-config
+          fetch-depth: 0
 
-            - name: Commit and push manifest changes
-              run: |
-                cd vehicle-k8s-config
-                git config user.name "GitHub Actions"
-                git config user.email "actions@github.com"
-                git add apps/vehicle-core/overlays/${OVERLAY}/kustomization.yml
-                git diff --cached --quiet && echo "No changes to commit" && exit 0
-                git commit -m "chore: update vehicle-fast-api image tag to ${IMAGE_TAG}"
-                git push origin HEAD
-                
+      - name: Install yq
+        run: |
+          sudo wget -O /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+
+      - name: Update backend image tag in kustomization
+        run: |
+          cd vehicle-k8s-config
+          yq -i '
+            (.images[] | select(.name == "${{ secrets.DOCKER_USERNAME }}/vehicle-fast-api") | .newTag) = strenv(IMAGE_TAG)
+          ' apps/vehicle-core/overlays/${OVERLAY}/kustomization.yml
+
+      - name: Commit and push manifest changes
+        run: |
+          cd vehicle-k8s-config
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add apps/vehicle-core/overlays/${OVERLAY}/kustomization.yml
+          git diff --cached --quiet && echo "No changes to commit" && exit 0
+          git commit -m "chore: update vehicle-fast-api image tag to ${IMAGE_TAG}"
+          git push origin HEAD
