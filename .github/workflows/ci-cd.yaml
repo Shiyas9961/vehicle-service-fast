@@ -92,14 +92,14 @@ jobs:
                 cd vehicle-k8s-config
                 yq -i '
                   (.images[] | select(.name == "${{ secrets.DOCKER_USERNAME }}/vehicle-fast-api") | .newTag) = strenv(IMAGE_TAG)
-                ' overlays/${OVERLAY}/kustomization.yml
+                ' apps/vehicle-core/overlays/${OVERLAY}/kustomization.yml
 
             - name: Commit and push manifest changes
               run: |
                 cd vehicle-k8s-config
                 git config user.name "GitHub Actions"
                 git config user.email "actions@github.com"
-                git add overlays/${OVERLAY}/kustomization.yml
+                git add apps/vehicle-core/overlays/${OVERLAY}/kustomization.yml
                 git diff --cached --quiet && echo "No changes to commit" && exit 0
                 git commit -m "chore: update vehicle-fast-api image tag to ${IMAGE_TAG}"
                 git push origin HEAD
