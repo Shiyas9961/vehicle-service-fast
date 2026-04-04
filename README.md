@@ -53,6 +53,9 @@ DATABASE_PORT=5432
 DATABASE_NAME=vehicle_db
 DATABASE_USER=postgres
 DATABASE_PASSWORD=postgres
+LOG_LEVEL=INFO
+LOG_DIR=logs
+LOG_FILE=vehicle-service.log
 ```
 
 ------------------------------------------------------------------------
@@ -63,7 +66,7 @@ DATABASE_PASSWORD=postgres
 python -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-uvicorn app.main:app --reload
+uvicorn app.main:app --reload --no-access-log
 ```
 
 API will be available at:
@@ -81,6 +84,12 @@ docker-compose up --build
 API:
 
     http://localhost:8000
+
+Logs:
+
+    kubectl logs <pod-name>
+    kubectl exec -it <pod-name> -- tail -f /app/logs/vehicle-service.log
+    tail -f logs/vehicle-service.log
 
 ------------------------------------------------------------------------
 
